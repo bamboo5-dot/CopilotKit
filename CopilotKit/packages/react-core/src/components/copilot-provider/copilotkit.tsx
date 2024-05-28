@@ -41,7 +41,7 @@ import {
   InChatRenderFunction,
 } from "../../context/copilot-context";
 import useTree from "../../hooks/use-tree";
-import { DocumentPointer } from "../../types";
+import { CopilotChatSuggestionConfiguration, DocumentPointer } from "../../types";
 
 import {
   COPILOT_CLOUD_CHAT_URL,
@@ -196,6 +196,26 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
       ...props.body,
       ...props.backendOnlyProps,
     },
+    transcribeAudioUrl: props.transcribeAudioUrl,
+    textToSpeechUrl: props.textToSpeechUrl,
+  };
+
+  const [chatSuggestionConfiguration, setChatSuggestionConfiguration] = useState<{
+    [key: string]: CopilotChatSuggestionConfiguration;
+  }>({});
+
+  const addChatSuggestionConfiguration = (
+    id: string,
+    suggestion: CopilotChatSuggestionConfiguration,
+  ) => {
+    setChatSuggestionConfiguration((prev) => ({ ...prev, [id]: suggestion }));
+  };
+
+  const removeChatSuggestionConfiguration = (id: string) => {
+    setChatSuggestionConfiguration((prev) => {
+      const { [id]: _, ...rest } = prev;
+      return rest;
+    });
   };
 
   return (
@@ -216,6 +236,9 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
         copilotApiConfig: copilotApiConfig,
         messages,
         setMessages,
+        chatSuggestionConfiguration,
+        addChatSuggestionConfiguration,
+        removeChatSuggestionConfiguration,
       }}
     >
       {children}

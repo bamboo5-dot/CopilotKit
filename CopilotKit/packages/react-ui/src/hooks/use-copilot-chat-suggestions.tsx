@@ -1,6 +1,11 @@
 /**
  * A hook for providing suggestions to the user in the Copilot chat.
  *
+ * <Warning>
+ *   useCopilotChatSuggestions is experimental. The interface is not final and
+ *   can change without further notice.
+ * </Warning>
+ *
  * <img src="/images/useCopilotChatSuggestions/use-copilot-chat-suggestions.gif" width="500" />
  *
  * <img referrerPolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=a9b290bb-38f9-4518-ac3b-8f54fdbf43be" />
@@ -61,7 +66,28 @@
 import { useEffect } from "react";
 import { useChatContext } from "../components";
 import { nanoid } from "nanoid";
-import { CopilotChatSuggestionConfiguration } from "../types/suggestions";
+import { CopilotChatSuggestionConfiguration, useCopilotContext } from "@copilotkit/react-core";
+
+interface UseCopilotChatSuggestionsConfiguration {
+  /**
+   * A prompt or instructions for the GPT to generate suggestions.
+   */
+  instructions: string;
+  /**
+   * The minimum number of suggestions to generate. Defaults to `1`.
+   * @default 1
+   */
+  minSuggestions?: number;
+  /**
+   * The maximum number of suggestions to generate. Defaults to `3`.
+   * @default 1
+   */
+  maxSuggestions?: number;
+  /**
+   * An optional class name to apply to the suggestions.
+   */
+  className?: string;
+}
 
 export function useCopilotChatSuggestions(
   {
@@ -69,15 +95,15 @@ export function useCopilotChatSuggestions(
     className,
     minSuggestions = 1,
     maxSuggestions = 3,
-  }: CopilotChatSuggestionConfiguration,
+  }: UseCopilotChatSuggestionsConfiguration,
   dependencies: any[] = [],
 ) {
-  const chatContext = useChatContext();
+  const context = useCopilotContext();
 
   useEffect(() => {
     const id = nanoid();
 
-    chatContext.addChatSuggestionConfiguration(id, {
+    context.addChatSuggestionConfiguration(id, {
       instructions,
       minSuggestions,
       maxSuggestions,
@@ -85,7 +111,7 @@ export function useCopilotChatSuggestions(
     });
 
     return () => {
-      chatContext.removeChatSuggestionConfiguration(id);
+      context.removeChatSuggestionConfiguration(id);
     };
   }, dependencies);
 }

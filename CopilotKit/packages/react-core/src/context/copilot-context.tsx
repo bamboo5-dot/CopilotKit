@@ -8,6 +8,7 @@ import { ActionRenderProps, FrontendAction } from "../types/frontend-action";
 import React from "react";
 import { TreeNodeId } from "../hooks/use-tree";
 import { DocumentPointer } from "../types";
+import { CopilotChatSuggestionConfiguration } from "../types/chat-suggestion-configuration";
 
 /**
  * Interface for the configuration of the Copilot API.
@@ -27,6 +28,16 @@ export interface CopilotApiConfig {
    * The endpoint for the chat API.
    */
   chatApiEndpoint: string;
+
+  /**
+   * The endpoint for the Copilot transcribe audio service.
+   */
+  transcribeAudioUrl?: string;
+
+  /**
+   * The endpoint for the Copilot text to speech service.
+   */
+  textToSpeechUrl?: string;
 
   /**
    * The endpoint for the chat API v2.
@@ -98,6 +109,14 @@ export interface CopilotContextParams {
   removeDocumentContext: (documentId: string) => void;
   getDocumentsContext: (categories: string[]) => DocumentPointer[];
 
+  // suggestions configuration
+  chatSuggestionConfiguration: { [key: string]: CopilotChatSuggestionConfiguration };
+  addChatSuggestionConfiguration: (
+    id: string,
+    suggestion: CopilotChatSuggestionConfiguration,
+  ) => void;
+  removeChatSuggestionConfiguration: (id: string) => void;
+
   // api endpoints
   copilotApiConfig: CopilotApiConfig;
 }
@@ -134,6 +153,10 @@ const emptyCopilotContext: CopilotContextParams = {
       return {};
     }
   })(),
+
+  chatSuggestionConfiguration: {},
+  addChatSuggestionConfiguration: () => {},
+  removeChatSuggestionConfiguration: () => {},
 };
 
 export const CopilotContext = React.createContext<CopilotContextParams>(emptyCopilotContext);

@@ -1,5 +1,29 @@
 # ui
 
+## 0.36.0
+
+### Minor Changes
+
+- 8baa862: Add push to talk prototype
+- chat suggestions, standalone chat component, gemini adapter, push to talk
+
+### Patch Changes
+
+- Updated dependencies [8baa862]
+- Updated dependencies
+  - @copilotkit/shared@0.36.0
+
+## 0.36.0-mme-push-to-talk.0
+
+### Minor Changes
+
+- Add push to talk prototype
+
+### Patch Changes
+
+- Updated dependencies
+  - @copilotkit/shared@0.36.0-mme-push-to-talk.0
+
 ## 0.25.0
 
 ### Minor Changes

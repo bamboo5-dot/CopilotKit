@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import * as DefaultIcons from "./Icons";
-import { CopilotChatSuggestion, CopilotChatSuggestionConfiguration } from "../../types/suggestions";
 
 /**
  * Icons for CopilotChat component.
@@ -53,6 +52,13 @@ export interface CopilotChatIcons {
    * @default <RegenerateIcon />
    */
   regenerateIcon?: React.ReactNode;
+
+  /**
+   * The icons to use for push to talk.
+   * @default <PushToTalkIcon />
+   */
+
+  pushToTalkIcon?: React.ReactNode;
 }
 
 /**
@@ -75,12 +81,6 @@ export interface CopilotChatLabels {
    * @default "Type a message..."
    */
   placeholder?: string;
-
-  /**
-   * The message to display while the chat GPT is "thinking".
-   * @default "Thinking..."
-   */
-  thinking?: string;
 
   /**
    * The message to display when an error occurs.
@@ -106,11 +106,6 @@ interface ChatContext {
   icons: Required<CopilotChatIcons>;
   open: boolean;
   setOpen: (open: boolean) => void;
-  addChatSuggestionConfiguration: (
-    id: string,
-    suggestion: CopilotChatSuggestionConfiguration,
-  ) => void;
-  removeChatSuggestionConfiguration: (id: string) => void;
 }
 
 export const ChatContext = React.createContext<ChatContext | undefined>(undefined);
@@ -134,11 +129,6 @@ interface ChatContextProps {
   children?: React.ReactNode;
   open: boolean;
   setOpen: (open: boolean) => void;
-  addChatSuggestionConfiguration: (
-    id: string,
-    suggestion: CopilotChatSuggestionConfiguration,
-  ) => void;
-  removeChatSuggestionConfiguration: (id: string) => void;
 }
 
 export const ChatContextProvider = ({
@@ -150,8 +140,6 @@ export const ChatContextProvider = ({
   children,
   open,
   setOpen,
-  addChatSuggestionConfiguration,
-  removeChatSuggestionConfiguration,
 }: ChatContextProps) => {
   const context = {
     labels: {
@@ -159,7 +147,6 @@ export const ChatContextProvider = ({
         initial: "",
         title: "CopilotKit",
         placeholder: "Type a message...",
-        thinking: "Thinking...",
         error: "❌ An error occurred. Please try again.",
         stopGenerating: "Stop generating",
         regenerateResponse: "Regenerate response",
@@ -177,13 +164,12 @@ export const ChatContextProvider = ({
         spinnerIcon: DefaultIcons.SpinnerIcon,
         stopIcon: DefaultIcons.StopIcon,
         regenerateIcon: DefaultIcons.RegenerateIcon,
+        pushToTalkIcon: DefaultIcons.PushToTalkIcon,
       },
       icons,
     },
     open,
     setOpen,
-    addChatSuggestionConfiguration,
-    removeChatSuggestionConfiguration,
   };
   return <ChatContext.Provider value={context}>{children}</ChatContext.Provider>;
 };
