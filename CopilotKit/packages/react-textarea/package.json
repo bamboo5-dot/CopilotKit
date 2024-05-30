@@ -63,7 +63,7 @@
     "clsx": "^1.2.1",
     "cmdk": "^0.2.0",
     "lodash.merge": "^4.6.2",
-    "lucide-react": "^0.274.0",
+    "lucide-react": "^0.378.0",
     "material-icons": "^1.13.10",
     "nanoid": "^4.0.2",
     "react-dom": "^18.2.0",
