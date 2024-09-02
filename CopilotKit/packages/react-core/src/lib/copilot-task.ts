@@ -1,25 +1,20 @@
 /**
- * Execute one-off tasks using Copilot intelligence.
+ * This class is used to execute one-off tasks, for example on button press. It can use the context available via [useCopilotReadable](/reference/hooks/useCopilotReadable) and the actions provided by [useCopilotAction](/reference/hooks/useCopilotAction), or you can provide your own context and actions.
  *
- * <img referrerPolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=a9b290bb-38f9-4518-ac3b-8f54fdbf43be" />
+ * ## Example
+ * In the simplest case, use CopilotTask in the context of your app by giving it instructions on what to do.
  *
- * This class is used to execute one-off tasks, for example on button press. It
- * can use the context available via [useCopilotReadable](../useCopilotReadable)
- * and the actions provided by [useCopilotAction](../useCopilotAction), or
- * you can provide your own context and actions.
+ * ```tsx
+ * import { CopilotTask, useCopilotContext } from "@copilotkit/react-core";
  *
- * <RequestExample>
- *   ```jsx CopilotTask Example
- *   import {
- *     CopilotTask,
- *     useCopilotContext
- *   } from "@copilotkit/react-core";
+ * export function MyComponent() {
+ *   const context = useCopilotContext();
  *
  *   const task = new CopilotTask({
  *     instructions: "Set a random message",
  *     actions: [
  *       {
- *       name: "setMessage",
+ *         name: "setMessage",
  *       description: "Set the message.",
  *       argumentAnnotations: [
  *         {
@@ -37,63 +32,39 @@
  *     }
  *     ]
  *   });
- *   const context = useCopilotContext();
- *   await task.run(context);
- *   ```
- * </RequestExample>
  *
- * In the simplest case, use CopilotTask in the context of your app by giving it instructions on what to do.
+ *   const executeTask = async () => {
+ *     await task.run(context, action);
+ *   }
  *
- * ```jsx
- * import {
- *     CopilotTask,
- *     useCopilotContext
- *   } from "@copilotkit/react-core";
- *
- * const randomSlideTask = new CopilotTask({
- *   instructions: "Make a random slide",
- * });
- *
- * const context = useCopilotContext();
- *
- * return (
- *   <button onClick={() => randomSlideTask.run(context)}>
- *     Make a random slide
- *   </button>
- * );
+ *   return (
+ *     <>
+ *       <button onClick={executeTask}>
+ *         Execute task
+ *       </button>
+ *     </>
+ *   )
+ * }
  * ```
  *
- * Have a look at the [Presentation example](https://github.com/CopilotKit/CopilotKit/blob/main/CopilotKit/examples/next-openai/src/app/presentation/page.tsx)
- * for a more complete example.
- *
- * It's also possible to provide your own context and actions. In addition, you can specify to ignore
- * `useCopilotReadable` and `useCopilotAction`.
- *
- * ```jsx
- * import {
- *     CopilotTask,
- *     useCopilotContext
- *   } from "@copilotkit/react-core";
- *
- * const standaloneTask = new CopilotTask({
- *   instructions: "Do something standalone",
- *   data: [...],
- *   actions: [...],
- *   includeCopilotReadable: false, // Don't use current context
- *   includeCopilotActions: false, // Don't use current actions
- * });
- *
- * const context = useCopilotContext();
- *
- * standaloneTask.run(context);
- * ```
+ * Have a look at the [Presentation Example App](https://github.com/CopilotKit/CopilotKit/blob/main/CopilotKit/examples/next-openai/src/app/presentation/page.tsx) for a more complete example.
  */
 
-import { FunctionCall, Message } from "@copilotkit/shared";
+import {
+  ActionExecutionMessage,
+  CopilotRuntimeClient,
+  Message,
+  Role,
+  TextMessage,
+  convertGqlOutputToMessages,
+  convertMessagesToGqlInput,
+  CopilotRequestType,
+} from "@copilotkit/runtime-client-gql";
 import { FrontendAction } from "../types/frontend-action";
 import { CopilotContextParams } from "../context";
 import { defaultCopilotContextCategories } from "../components";
-import { fetchAndDecodeChatCompletion } from "../utils/fetch-chat-completion";
+import { MessageStatusCode } from "@copilotkit/runtime-client-gql";
+import { actionParametersToJsonSchema } from "@copilotkit/shared";
 
 export interface CopilotTaskConfig {
   /**
@@ -111,12 +82,6 @@ export interface CopilotTaskConfig {
 
   /**
    * Whether to include actions defined via useCopilotAction in the task.
-   * @deprecated Use the `includeCopilotActions` property instead.
-   */
-  includeCopilotActionable?: boolean;
-
-  /**
-   * Whether to include actions defined via useCopilotAction in the task.
    */
   includeCopilotActions?: boolean;
 }
@@ -131,8 +96,7 @@ export class CopilotTask<T = any> {
     this.instructions = config.instructions;
     this.actions = config.actions || [];
     this.includeCopilotReadable = config.includeCopilotReadable !== false;
-    this.includeCopilotActions =
-      config.includeCopilotActions !== false && config.includeCopilotActionable !== false;
+    this.includeCopilotActions = config.includeCopilotActions !== false;
   }
 
   /**
@@ -141,11 +105,11 @@ export class CopilotTask<T = any> {
    * @param data The data to use for the task.
    */
   async run(context: CopilotContextParams, data?: T): Promise<void> {
-    const entryPoints = this.includeCopilotActions ? Object.assign({}, context.entryPoints) : {};
+    const actions = this.includeCopilotActions ? Object.assign({}, context.actions) : {};
 
     // merge functions into entry points
     for (const fn of this.actions) {
-      entryPoints[fn.name] = fn;
+      actions[fn.name] = fn;
     }
 
     let contextString = "";
@@ -158,52 +122,54 @@ export class CopilotTask<T = any> {
       contextString += context.getContextString([], defaultCopilotContextCategories);
     }
 
-    const systemMessage: Message = {
-      id: "system",
+    const systemMessage = new TextMessage({
       content: taskSystemMessage(contextString, this.instructions),
-      role: "system",
-    };
-
-    const messages = [systemMessage];
-
-    const response = await fetchAndDecodeChatCompletion({
-      copilotConfig: context.copilotApiConfig,
-      messages: messages,
-      tools: context.getChatCompletionFunctionDescriptions(entryPoints),
-      headers: context.copilotApiConfig.headers,
-      body: context.copilotApiConfig.body,
+      role: Role.System,
     });
 
-    if (!response.events) {
-      throw new Error("Failed to execute task");
-    }
+    const messages: Message[] = [systemMessage];
 
-    const reader = response.events.getReader();
-    let functionCalls: FunctionCall[] = [];
+    const runtimeClient = new CopilotRuntimeClient({
+      url: context.copilotApiConfig.chatApiEndpoint,
+      publicApiKey: context.copilotApiConfig.publicApiKey,
+      headers: context.copilotApiConfig.headers,
+      credentials: context.copilotApiConfig.credentials,
+    });
 
-    while (true) {
-      const { done, value } = await reader.read();
+    const response = await runtimeClient
+      .generateCopilotResponse({
+        data: {
+          frontend: {
+            actions: Object.values(actions).map((action) => ({
+              name: action.name,
+              description: action.description || "",
+              jsonSchema: JSON.stringify(actionParametersToJsonSchema(action.parameters || [])),
+            })),
+            url: window.location.href,
+          },
+          messages: convertMessagesToGqlInput(messages),
+          metadata: {
+            requestType: CopilotRequestType.Task,
+          },
+          forwardedParameters: {
+            toolChoice: "required",
+          },
+        },
+        properties: context.copilotApiConfig.properties,
+      })
+      .toPromise();
 
-      if (done) {
-        break;
-      }
+    const functionCallHandler = context.getFunctionCallHandler(actions);
+    const functionCalls = convertGqlOutputToMessages(
+      response.data?.generateCopilotResponse?.messages || [],
+    ).filter((m): m is ActionExecutionMessage => m instanceof ActionExecutionMessage);
 
-      if (value.type === "function") {
-        functionCalls.push({
-          name: value.name,
-          arguments: JSON.stringify(value.arguments),
-        });
-        break;
-      }
-    }
-
-    if (!functionCalls.length) {
-      throw new Error("No function call occurred");
-    }
-
-    const functionCallHandler = context.getFunctionCallHandler(entryPoints);
     for (const functionCall of functionCalls) {
-      await functionCallHandler(messages, functionCall);
+      await functionCallHandler({
+        messages,
+        name: functionCall.name,
+        args: functionCall.arguments,
+      });
     }
   }
 }

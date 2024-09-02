@@ -1,15 +1,15 @@
-import { Documentation } from "./lib/doc";
-import { getAnnotatedMdxDocs } from "./lib/mdx";
+import { REFERENCE_DOCS } from "./lib/files";
+import { ReferenceDoc } from "./lib/reference-doc";
 
-const DOCS_PATH = "../docs";
-
-getAnnotatedMdxDocs(DOCS_PATH)
-  .then(async (annotations) => {
-    for (const annotation of annotations) {
-      const doc = new Documentation(annotation);
-      await doc.generate();
-    }
+Promise.all(
+  REFERENCE_DOCS.map(async (referenceDoc) => {
+    const doc = new ReferenceDoc(referenceDoc);
+    await doc.generate();
+  }),
+)
+  .then(() => {
+    console.log("All reference docs processed");
   })
   .catch((error) => {
-    console.error("Error generating docs:", error);
+    console.error("Error processing reference docs:", error);
   });

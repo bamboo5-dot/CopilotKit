@@ -1,47 +1,48 @@
 /**
- * An embeddable chat panel for CopilotKit.
- *
- * <img src="/images/CopilotChat/CopilotChat.gif" width="500" />
+ * <br/>
+ * <img src="/images/CopilotChat.gif" width="500" />
  *
  * A chatbot panel component for the CopilotKit framework. The component allows for a high degree
  * of customization through various props and custom CSS.
  *
- * <RequestExample>
- *   ```jsx CopilotChat Example
- *   import { CopilotChat } from "@copilotkit/react-ui";
+ * ## Install Dependencies
  *
- *   <CopilotChat
- *     labels={{
- *       title: "Your Assistant",
- *       initial: "Hi! 👋 How can I assist you today?",
- *     }}
- *   />
- *   ```
- * </RequestExample>
+ * This component is part of the [@copilotkit/react-ui](https://npmjs.com/package/@copilotkit/react-ui) package.
  *
- * ## Custom CSS
- *
- * You can customize the colors of the panel by overriding the CSS variables
- * defined in the [default styles](https://github.com/CopilotKit/CopilotKit/blob/main/CopilotKit/packages/react-ui/src/css/colors.css).
- *
- * For example, to set the primary color to purple:
- *
- * ```jsx
- * <div style={{ "--copilot-kit-primary-color": "#7D5BA6" }}>
- *   <CopilotPopup />
- * </div>
+ * ```shell npm2yarn \"@copilotkit/react-ui"\
+ * npm install @copilotkit/react-core @copilotkit/react-ui
  * ```
  *
- * To further customize the panel, you can override the CSS classes defined
- * [here](https://github.com/CopilotKit/CopilotKit/blob/main/CopilotKit/packages/react-ui/src/css/).
+ * ## Usage
  *
- * For example:
+ * ```tsx
+ * import { CopilotChat } from "@copilotkit/react-ui";
+ * import "@copilotkit/react-ui/styles.css";
  *
- * ```css
- * .copilotKitButton {
- *   border-radius: 0;
+ * <CopilotChat
+ *   labels={{
+ *     title: "Your Assistant",
+ *     initial: "Hi! 👋 How can I assist you today?",
+ *   }}
+ * />
+ * ```
+ *
+ * ### Look & Feel
+ *
+ * By default, CopilotKit components do not have any styles. You can import CopilotKit's stylesheet at the root of your project:
+ * ```tsx fileName="YourRootComponent.tsx" {2}
+ * ...
+ * import "@copilotkit/react-ui/styles.css";
+ *
+ * export function YourRootComponent() {
+ *   return (
+ *     <CopilotKit>
+ *       ...
+ *     </CopilotKit>
+ *   );
  * }
  * ```
+ * For more information about how to customize the styles, check out the [Customize Look & Feel](/concepts/customize-look-and-feel) guide.
  */
 
 import {
@@ -56,11 +57,13 @@ import { ResponseButton as DefaultResponseButton } from "./Response";
 import { Suggestion } from "./Suggestion";
 import React, { useEffect, useRef, useState } from "react";
 import { SystemMessageFunction, useCopilotChat, useCopilotContext } from "@copilotkit/react-core";
-import { nanoid } from "nanoid";
 import { reloadSuggestions } from "./Suggestion";
 import { CopilotChatSuggestion } from "../../types/suggestions";
-import { Message } from "@copilotkit/shared";
+import { Message, Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import { InputProps, MessagesProps, ResponseButtonProps } from "./props";
+import { randomId } from "@copilotkit/shared";
+
+import { CopilotDevConsole } from "../dev-console";
 
 /**
  * Props for CopilotChat component.
@@ -84,7 +87,7 @@ export interface CopilotChatProps {
   /**
    * A callback that gets called when a new message it submitted.
    */
-  onSubmitMessage?: (message: string) => void;
+  onSubmitMessage?: (message: string) => void | Promise<void>;
 
   /**
    * Icons can be used to set custom icons for the chat window.
@@ -149,14 +152,27 @@ export function CopilotChat({
   icons,
   labels,
 }: CopilotChatProps) {
-  const { visibleMessages, isLoading, currentSuggestions, sendMessage, stop, reload } =
-    useCopilotChatLogic(instructions, makeSystemMessage, onInProgress, onSubmitMessage);
+  const context = useCopilotContext();
+
+  useEffect(() => {
+    context.setChatInstructions(instructions || "");
+  }, [instructions]);
+
+  const {
+    visibleMessages,
+    isLoading,
+    currentSuggestions,
+    sendMessage,
+    stopGeneration,
+    reloadMessages,
+  } = useCopilotChatLogic(makeSystemMessage, onInProgress, onSubmitMessage);
 
   const chatContext = React.useContext(ChatContext);
   const isVisible = chatContext ? chatContext.open : true;
 
   return (
     <WrappedCopilotChat icons={icons} labels={labels} className={className}>
+      <CopilotDevConsole />
       <Messages messages={visibleMessages} inProgress={isLoading}>
         {currentSuggestions.length > 0 && (
           <div>
@@ -176,7 +192,10 @@ export function CopilotChat({
           </div>
         )}
         {showResponseButton && visibleMessages.length > 0 && (
-          <ResponseButton onClick={isLoading ? stop : reload} inProgress={isLoading} />
+          <ResponseButton
+            onClick={isLoading ? stopGeneration : reloadMessages}
+            inProgress={isLoading}
+          />
         )}
       </Messages>
       <Input inProgress={isLoading} onSend={sendMessage} isVisible={isVisible} />
@@ -209,16 +228,15 @@ export function WrappedCopilotChat({
 const SUGGESTIONS_DEBOUNCE_TIMEOUT = 1000;
 
 export const useCopilotChatLogic = (
-  instructions?: string,
   makeSystemMessage?: SystemMessageFunction,
   onInProgress?: (isLoading: boolean) => void,
   onSubmitMessage?: (messageContent: string) => void,
 ) => {
-  const { visibleMessages, append, reload, stop, isLoading, input, setInput } = useCopilotChat({
-    id: nanoid(),
-    makeSystemMessage,
-    additionalInstructions: instructions,
-  });
+  const { visibleMessages, appendMessage, reloadMessages, stopGeneration, isLoading } =
+    useCopilotChat({
+      id: randomId(),
+      makeSystemMessage,
+    });
 
   const [currentSuggestions, setCurrentSuggestions] = useState<CopilotChatSuggestion[]>([]);
   const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
@@ -259,13 +277,23 @@ export const useCopilotChatLogic = (
   const sendMessage = async (messageContent: string) => {
     abortSuggestions();
     setCurrentSuggestions([]);
-    onSubmitMessage?.(messageContent);
-    const message: Message = {
-      id: nanoid(),
+
+    const message: Message = new TextMessage({
       content: messageContent,
-      role: "user",
-    };
-    append(message);
+      role: Role.User,
+    });
+
+    // Append the message immediately to make it visible
+    appendMessage(message);
+
+    if (onSubmitMessage) {
+      try {
+        await onSubmitMessage(messageContent);
+      } catch (error) {
+        console.error("Error in onSubmitMessage:", error);
+      }
+    }
+
     return message;
   };
 
@@ -274,9 +302,7 @@ export const useCopilotChatLogic = (
     isLoading,
     currentSuggestions,
     sendMessage,
-    stop,
-    reload,
-    input,
-    setInput,
+    stopGeneration,
+    reloadMessages,
   };
 };

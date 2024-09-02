@@ -11,7 +11,7 @@ import { useStateWithLocalStorage } from "../utils";
 
 export default function CopilotTextareaDemo() {
   return (
-    <CopilotKit runtimeUrl="/api/copilotkit/openai">
+    <CopilotKit runtimeUrl="/api/copilotkit">
       <TextAreas />
     </CopilotKit>
   );
@@ -73,10 +73,8 @@ function TextAreas() {
             suggestionsApiConfig: {
               // makeSystemPrompt: makeSystemPrompt,
               // fewShotMessages: fewShotMessages,
-              forwardedParams: {
-                max_tokens: 5,
-                stop: ["\n", ".", ","],
-              },
+              maxTokens: 5,
+              stop: ["\n", ".", ","],
             },
             insertionApiConfig: {},
           },
@@ -130,20 +128,3 @@ function TextAreas() {
 // \`\`\`
 // `;
 // };
-
-// const fewShotMessages: MinimalChatGPTMessage[] = [
-//   {
-//     role: "user",
-//     content: "",
-//     name: "TextAfterCursor",
-//   },
-//   {
-//     role: "user",
-//     content: "Introducing:",
-//     name: "TextBeforeCursor",
-//   },
-//   {
-//     role: "assistant",
-//     content: "<CopilotTextarea />",
-//   },
-// ];

@@ -1,40 +1,36 @@
 /**
- * Provides the Copilot context to its children.
- * 
- * <img
- *   referrerPolicy="no-referrer-when-downgrade"
- *   src="https://static.scarf.sh/a.png?x-pxid=a9b290bb-38f9-4518-ac3b-8f54fdbf43be"
- * />
- * 
- * This component provides the Copilot context to its children.
- * It can be configured either with a chat API endpoint or a `CopilotApiConfig`.
- * 
- * <Note>
- *   The backend can use OpenAI, or you can bring your own LLM. For examples of the
- *   backend api implementation, see `examples/next-openai` or the [runtime
- *   docs](https://docs.copilotkit.ai/getting-started/quickstart-runtime).
- * </Note>
- * 
- * <RequestExample>
- *   ```jsx CopilotKit Example
- *   import { CopilotKit } from "@copilotkit/react-core";
- * 
- *   <CopilotKit 
- *     runtimeUrl="https://your.copilotkit.api">
- *     <YourApp/>
- *   </CopilotKit>
- *   ```
- * </RequestExample>
- * 
- * ## Example usage
- * 
- * ```jsx
- * <CopilotKit publicApiKey="the api key or self host (see below)">
- *   <App />
- * </CopilotKit>
-```
+ * This component will typically wrap your entire application (or a sub-tree of your application where you want to have a copilot). It provides the copilot context to all other components and hooks.
+ *
+ * ## Example
+ *
+ * <Tabs items={["Copilot Cloud (Recommended)", "Self-hosted Runtime"]}>
+ *   <Tabs.Tab>
+ *
+ *     You can get your Copilot Cloud API key for free by <LinkToCopilotCloud>signing up here</LinkToCopilotCloud>.
+ *
+ *     ```tsx
+ *     import { CopilotKit } from "@copilotkit/react-core";
+ *
+ *     <CopilotKit publicApiKey="<your-public-api-key>">
+ *       // ... your app ...
+ *     </CopilotKit>
+ *     ```
+ *   </Tabs.Tab>
+ *
+ *   <Tabs.Tab>
+ *     You can find more information about self-hosting CopilotKit [here](/concepts/copilot-runtime).
+ *
+ *     ```tsx
+ *     import { CopilotKit } from "@copilotkit/react-core";
+ *
+ *     <CopilotKit runtimeUrl="<your-runtime-url>">
+ *       // ... your app ...
+ *     </CopilotKit>
+ *     ```
+ *   </Tabs.Tab>
+ * </Tabs>
  */
-import { Ref, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   CopilotContext,
   CopilotApiConfig,
@@ -42,34 +38,36 @@ import {
 } from "../../context/copilot-context";
 import useTree from "../../hooks/use-tree";
 import { CopilotChatSuggestionConfiguration, DocumentPointer } from "../../types";
-
+import { flushSync } from "react-dom";
 import {
   COPILOT_CLOUD_CHAT_URL,
   CopilotCloudConfig,
   FunctionCallHandler,
-  Message,
-  actionToChatCompletionFunction,
 } from "@copilotkit/shared";
+import { Message } from "@copilotkit/runtime-client-gql";
 
 import { FrontendAction } from "../../types/frontend-action";
 import useFlatCategoryStore from "../../hooks/use-flat-category-store";
 import { CopilotKitProps } from "./copilotkit-props";
-import { ToolDefinition } from "@copilotkit/shared";
 
 export function CopilotKit({ children, ...props }: CopilotKitProps) {
   // Compute all the functions and properties that we need to pass
   // to the CopilotContext.
 
-  if (!props.runtimeUrl && !props.url && !props.publicApiKey) {
-    throw new Error("Please provide either a url or a publicApiKey to the CopilotKit component.");
+  if (!props.runtimeUrl && !props.publicApiKey) {
+    throw new Error(
+      "Please provide either a runtimeUrl or a publicApiKey to the CopilotKit component.",
+    );
   }
 
-  const chatApiEndpoint = props.runtimeUrl || props.url || COPILOT_CLOUD_CHAT_URL;
+  const chatApiEndpoint = props.runtimeUrl || COPILOT_CLOUD_CHAT_URL;
 
-  const [entryPoints, setEntryPoints] = useState<Record<string, FrontendAction<any>>>({});
+  const [actions, setActions] = useState<Record<string, FrontendAction<any>>>({});
   const chatComponentsCache = useRef<Record<string, InChatRenderFunction | string>>({});
   const { addElement, removeElement, printTree } = useTree();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [chatInstructions, setChatInstructions] = useState("");
 
   const {
     addElement: addDocument,
@@ -77,17 +75,17 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
     allElements: allDocuments,
   } = useFlatCategoryStore<DocumentPointer>();
 
-  const setEntryPoint = useCallback((id: string, entryPoint: FrontendAction<any>) => {
-    setEntryPoints((prevPoints) => {
+  const setAction = useCallback((id: string, action: FrontendAction<any>) => {
+    setActions((prevPoints) => {
       return {
         ...prevPoints,
-        [id]: entryPoint,
+        [id]: action,
       };
     });
   }, []);
 
-  const removeEntryPoint = useCallback((id: string) => {
-    setEntryPoints((prevPoints) => {
+  const removeAction = useCallback((id: string) => {
+    setActions((prevPoints) => {
       const newPoints = { ...prevPoints };
       delete newPoints[id];
       return newPoints;
@@ -127,18 +125,11 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
     [removeElement],
   );
 
-  const getChatCompletionFunctionDescriptions = useCallback(
-    (customEntryPoints?: Record<string, FrontendAction<any>>) => {
-      return entryPointsToChatCompletionFunctions(Object.values(customEntryPoints || entryPoints));
-    },
-    [entryPoints],
-  );
-
   const getFunctionCallHandler = useCallback(
     (customEntryPoints?: Record<string, FrontendAction<any>>) => {
-      return entryPointsToFunctionCallHandler(Object.values(customEntryPoints || entryPoints));
+      return entryPointsToFunctionCallHandler(Object.values(customEntryPoints || actions));
     },
-    [entryPoints],
+    [actions],
   );
 
   const getDocumentsContext = useCallback(
@@ -190,14 +181,11 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
     publicApiKey: props.publicApiKey,
     ...(cloud ? { cloud } : {}),
     chatApiEndpoint: chatApiEndpoint,
-    chatApiEndpointV2: `${props.url}/v2`,
     headers: props.headers || {},
-    body: {
-      ...props.body,
-      ...props.backendOnlyProps,
-    },
+    properties: props.properties || {},
     transcribeAudioUrl: props.transcribeAudioUrl,
     textToSpeechUrl: props.textToSpeechUrl,
+    credentials: props.credentials,
   };
 
   const [chatSuggestionConfiguration, setChatSuggestionConfiguration] = useState<{
@@ -221,12 +209,11 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
   return (
     <CopilotContext.Provider
       value={{
-        entryPoints,
+        actions,
         chatComponentsCache,
-        getChatCompletionFunctionDescriptions,
         getFunctionCallHandler,
-        setEntryPoint,
-        removeEntryPoint,
+        setAction,
+        removeAction,
         getContextString,
         addContext,
         removeContext,
@@ -236,9 +223,14 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
         copilotApiConfig: copilotApiConfig,
         messages,
         setMessages,
+        isLoading,
+        setIsLoading,
         chatSuggestionConfiguration,
         addChatSuggestionConfiguration,
         removeChatSuggestionConfiguration,
+        chatInstructions,
+        setChatInstructions,
+        showDevConsole: props.showDevConsole === undefined ? "auto" : props.showDevConsole,
       }}
     >
       {children}
@@ -248,24 +240,28 @@ export function CopilotKit({ children, ...props }: CopilotKitProps) {
 
 export const defaultCopilotContextCategories = ["global"];
 
-function entryPointsToChatCompletionFunctions(actions: FrontendAction<any>[]): ToolDefinition[] {
-  return actions.map(actionToChatCompletionFunction);
-}
-
 function entryPointsToFunctionCallHandler(actions: FrontendAction<any>[]): FunctionCallHandler {
-  return async (chatMessages, functionCall) => {
+  return async ({ messages, name, args }) => {
     let actionsByFunctionName: Record<string, FrontendAction<any>> = {};
     for (let action of actions) {
       actionsByFunctionName[action.name] = action;
     }
 
-    const action = actionsByFunctionName[functionCall.name || ""];
+    const action = actionsByFunctionName[name];
+    let result: any = undefined;
     if (action) {
-      let functionCallArguments: Record<string, any>[] = [];
-      if (functionCall.arguments) {
-        functionCallArguments = JSON.parse(functionCall.arguments);
-      }
-      return await action.handler(functionCallArguments);
+      await new Promise<void>((resolve, reject) => {
+        flushSync(async () => {
+          try {
+            result = await action.handler(args);
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
     }
+    return result;
   };
 }

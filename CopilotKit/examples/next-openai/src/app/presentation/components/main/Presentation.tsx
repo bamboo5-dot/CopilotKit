@@ -5,7 +5,7 @@ import { Slide } from "./Slide";
 import { Header } from "./Header";
 import useAppendSlide from "../../actions/useAppendSlide";
 import { SlideModel } from "../../types";
-import { useCopilotChatSuggestions } from "@copilotkit/react-ui";
+import { CopilotKitCSSProperties, useCopilotChatSuggestions } from "@copilotkit/react-ui";
 
 interface PresentationProps {
   performResearch: boolean;
@@ -36,8 +36,10 @@ export const Presentation = ({ performResearch, setPerformResearch }: Presentati
   const [slides, setSlides] = useState<SlideModel[]>([
     {
       content: "This is the first slide.",
-      backgroundImageDescription: "hello",
+      backgroundImageUrl:
+        "https://loremflickr.com/cache/resized/65535_53415810728_d1db6e2660_h_800_600_nofilter.jpg",
       spokenNarration: "This is the first slide. Welcome to our presentation!",
+      backgroundImageDescription: "A default image placeholder",
     },
   ]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
