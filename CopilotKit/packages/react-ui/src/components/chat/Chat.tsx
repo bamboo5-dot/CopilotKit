@@ -30,9 +30,9 @@
  * ### Look & Feel
  *
  * By default, CopilotKit components do not have any styles. You can import CopilotKit's stylesheet at the root of your project:
- * ```tsx fileName="YourRootComponent.tsx" {2}
+ * ```tsx title="YourRootComponent.tsx"
  * ...
- * import "@copilotkit/react-ui/styles.css";
+ * import "@copilotkit/react-ui/styles.css"; // [!code highlight]
  *
  * export function YourRootComponent() {
  *   return (
@@ -54,13 +54,22 @@ import {
 import { Messages as DefaultMessages } from "./Messages";
 import { Input as DefaultInput } from "./Input";
 import { ResponseButton as DefaultResponseButton } from "./Response";
+import { RenderTextMessage as DefaultRenderTextMessage } from "./messages/RenderTextMessage";
+import { RenderActionExecutionMessage as DefaultRenderActionExecutionMessage } from "./messages/RenderActionExecutionMessage";
+import { RenderResultMessage as DefaultRenderResultMessage } from "./messages/RenderResultMessage";
+import { RenderAgentStateMessage as DefaultRenderAgentStateMessage } from "./messages/RenderAgentStateMessage";
 import { Suggestion } from "./Suggestion";
 import React, { useEffect, useRef, useState } from "react";
-import { SystemMessageFunction, useCopilotChat, useCopilotContext } from "@copilotkit/react-core";
+import {
+  SystemMessageFunction,
+  useCopilotChat,
+  useCopilotContext,
+  useCopilotMessagesContext,
+} from "@copilotkit/react-core";
 import { reloadSuggestions } from "./Suggestion";
 import { CopilotChatSuggestion } from "../../types/suggestions";
 import { Message, Role, TextMessage } from "@copilotkit/runtime-client-gql";
-import { InputProps, MessagesProps, ResponseButtonProps } from "./props";
+import { InputProps, MessagesProps, RenderMessageProps, ResponseButtonProps } from "./props";
 import { randomId } from "@copilotkit/shared";
 
 import { CopilotDevConsole } from "../dev-console";
@@ -119,6 +128,26 @@ export interface CopilotChatProps {
   Messages?: React.ComponentType<MessagesProps>;
 
   /**
+   * A custom RenderTextMessage component to use instead of the default.
+   */
+  RenderTextMessage?: React.ComponentType<RenderMessageProps>;
+
+  /**
+   * A custom RenderActionExecutionMessage component to use instead of the default.
+   */
+  RenderActionExecutionMessage?: React.ComponentType<RenderMessageProps>;
+
+  /**
+   * A custom RenderAgentStateMessage component to use instead of the default.
+   */
+  RenderAgentStateMessage?: React.ComponentType<RenderMessageProps>;
+
+  /**
+   * A custom RenderResultMessage component to use instead of the default.
+   */
+  RenderResultMessage?: React.ComponentType<RenderMessageProps>;
+
+  /**
    * A custom Input component to use instead of the default.
    */
   Input?: React.ComponentType<InputProps>;
@@ -146,6 +175,10 @@ export function CopilotChat({
   showResponseButton = true,
   onInProgress,
   Messages = DefaultMessages,
+  RenderTextMessage = DefaultRenderTextMessage,
+  RenderActionExecutionMessage = DefaultRenderActionExecutionMessage,
+  RenderAgentStateMessage = DefaultRenderAgentStateMessage,
+  RenderResultMessage = DefaultRenderResultMessage,
   Input = DefaultInput,
   ResponseButton = DefaultResponseButton,
   className,
@@ -173,7 +206,14 @@ export function CopilotChat({
   return (
     <WrappedCopilotChat icons={icons} labels={labels} className={className}>
       <CopilotDevConsole />
-      <Messages messages={visibleMessages} inProgress={isLoading}>
+      <Messages
+        RenderTextMessage={RenderTextMessage}
+        RenderActionExecutionMessage={RenderActionExecutionMessage}
+        RenderAgentStateMessage={RenderAgentStateMessage}
+        RenderResultMessage={RenderResultMessage}
+        messages={visibleMessages}
+        inProgress={isLoading}
+      >
         {currentSuggestions.length > 0 && (
           <div>
             <h6>Suggested:</h6>
@@ -230,7 +270,7 @@ const SUGGESTIONS_DEBOUNCE_TIMEOUT = 1000;
 export const useCopilotChatLogic = (
   makeSystemMessage?: SystemMessageFunction,
   onInProgress?: (isLoading: boolean) => void,
-  onSubmitMessage?: (messageContent: string) => void,
+  onSubmitMessage?: (messageContent: string) => Promise<void> | void,
 ) => {
   const { visibleMessages, appendMessage, reloadMessages, stopGeneration, isLoading } =
     useCopilotChat({
@@ -247,7 +287,9 @@ export const useCopilotChatLogic = (
     suggestionsAbortControllerRef.current = null;
   };
 
-  const context = useCopilotContext();
+  const generalContext = useCopilotContext();
+  const messagesContext = useCopilotMessagesContext();
+  const context = { ...generalContext, ...messagesContext };
 
   useEffect(() => {
     onInProgress?.(isLoading);
@@ -283,9 +325,6 @@ export const useCopilotChatLogic = (
       role: Role.User,
     });
 
-    // Append the message immediately to make it visible
-    appendMessage(message);
-
     if (onSubmitMessage) {
       try {
         await onSubmitMessage(messageContent);
@@ -293,6 +332,10 @@ export const useCopilotChatLogic = (
         console.error("Error in onSubmitMessage:", error);
       }
     }
+    // this needs to happen after onSubmitMessage, because it will trigger submission
+    // of the message to the endpoint. Some users depend on performing some actions
+    // before the message is submitted.
+    appendMessage(message);
 
     return message;
   };

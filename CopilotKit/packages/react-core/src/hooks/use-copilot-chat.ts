@@ -44,6 +44,9 @@ import { Message, Role, TextMessage } from "@copilotkit/runtime-client-gql";
 import { SystemMessageFunction } from "../types";
 import { useChat } from "./use-chat";
 import { defaultCopilotContextCategories } from "../components";
+import { MessageStatusCode } from "@copilotkit/runtime-client-gql";
+import { CoAgentStateRenderHandlerArguments } from "@copilotkit/shared";
+import { useCopilotMessagesContext } from "../context";
 
 export interface UseCopilotChatOptions {
   /**
@@ -86,13 +89,18 @@ export function useCopilotChat({
     getContextString,
     getFunctionCallHandler,
     copilotApiConfig,
-    messages,
-    setMessages,
     isLoading,
     setIsLoading,
     chatInstructions,
     actions,
+
+    coagentStates,
+    setCoagentStates,
+    coAgentStateRenders,
+    agentSession,
+    setAgentSession,
   } = useCopilotContext();
+  const { messages, setMessages } = useCopilotMessagesContext();
 
   // We need to ensure that makeSystemMessageCallback always uses the latest
   // useCopilotReadable data.
@@ -115,26 +123,91 @@ export function useCopilotChat({
     });
   }, [getContextString, makeSystemMessage, chatInstructions]);
 
+  const onCoAgentStateRender = useCallback(
+    async (args: CoAgentStateRenderHandlerArguments) => {
+      const { name, nodeName, state } = args;
+      let action = Object.values(coAgentStateRenders).find(
+        (action) => action.name === name && action.nodeName === nodeName,
+      );
+      if (!action) {
+        action = Object.values(coAgentStateRenders).find(
+          (action) => action.name === name && !action.nodeName,
+        );
+      }
+      if (action) {
+        await action.handler?.({ state, nodeName });
+      }
+    },
+    [coAgentStateRenders],
+  );
+
   const { append, reload, stop } = useChat({
     ...options,
     actions: Object.values(actions),
     copilotConfig: copilotApiConfig,
     initialMessages: options.initialMessages || [],
     onFunctionCall: getFunctionCallHandler(),
+    onCoAgentStateRender,
     messages,
     setMessages,
     makeSystemMessageCallback,
     isLoading,
     setIsLoading,
+    coagentStates,
+    setCoagentStates,
+    agentSession,
+    setAgentSession,
   });
+
+  // this is a workaround born out of a bug that Athena insessently ran into.
+  // We could not find the origin of the bug, however, it was clear that an outdated version of the append function was being used somehow --
+  // it referecned the old state of the messages array, and not the latest one.
+  //
+  // We want to make copilotkit as abuse-proof as possible, so we are adding this workaround to ensure that the latest version of the append function is always used.
+  //
+  // How does this work?
+  // we store the relevant function in a ref that is always up-to-date, and then we use that ref in the callback.
+  const latestAppend = useUpdatedRef(append);
+  const latestAppendFunc = useCallback(
+    (message: Message) => {
+      return latestAppend.current(message);
+    },
+    [latestAppend],
+  );
+
+  const latestReload = useUpdatedRef(reload);
+  const latestReloadFunc = useCallback(() => {
+    return latestReload.current();
+  }, [latestReload]);
+
+  const latestStop = useUpdatedRef(stop);
+  const latestStopFunc = useCallback(() => {
+    return latestStop.current();
+  }, [latestStop]);
+
+  const latestDelete = useUpdatedRef(deleteMessage);
+  const latestDeleteFunc = useCallback(
+    (messageId: string) => {
+      return latestDelete.current(messageId);
+    },
+    [latestDelete],
+  );
+
+  const latestSetMessages = useUpdatedRef(setMessages);
+  const latestSetMessagesFunc = useCallback(
+    (messages: Message[]) => {
+      return latestSetMessages.current(messages);
+    },
+    [latestSetMessages],
+  );
 
   return {
     visibleMessages: messages,
-    appendMessage: append,
-    setMessages,
-    reloadMessages: reload,
-    stopGeneration: stop,
-    deleteMessage,
+    appendMessage: latestAppendFunc,
+    setMessages: latestSetMessagesFunc,
+    reloadMessages: latestReloadFunc,
+    stopGeneration: latestStopFunc,
+    deleteMessage: latestDeleteFunc,
     isLoading,
   };
 }

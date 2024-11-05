@@ -1,0 +1,16 @@
+{
+  "title": "coagents",
+  "root": true,
+  "pages": [
+    "index",
+    "getting-started",
+    "---In-chat experiences---",
+    "...chat-ui",
+    "---In-app experiences---",
+    "...react-ui",
+    "---Advanced---",
+    "...advanced",
+    "---Demos & Tutorials---",
+    "...demos"
+  ]
+}

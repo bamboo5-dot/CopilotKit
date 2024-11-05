@@ -1,5 +1,129 @@
 # tsconfig
 
+## 1.3.11
+
+### Patch Changes
+
+- 08e8956: Fix duplicate messages
+- Fix duplicate messages
+
+## 1.3.11-mme-fix-duplicate-messages.0
+
+### Patch Changes
+
+- Fix duplicate messages
+
+## 1.3.10
+
+### Patch Changes
+
+- change how message chunk type is resolved (fixed langchain adapters)
+
+## 1.3.9
+
+### Patch Changes
+
+- Fix message id issues
+
+## 1.3.8
+
+### Patch Changes
+
+- fix textarea on multiple llm providers and memoize react ui context
+
+## 1.3.7
+
+### Patch Changes
+
+- Fix libraries for React 19 and Next.js 15 support
+
+## 1.3.6
+
+### Patch Changes
+
+- 1. Removes the usage of the `crypto` Node pacakge, instaed uses `uuid`. This ensures that non-Next.js React apps can use CopilotKit.
+  2. Fixes Nest.js runtime docs
+
+## 1.3.5
+
+### Patch Changes
+
+- Improve CoAgent state render
+
+## 1.3.4
+
+### Patch Changes
+
+- Add followUp property to useCopilotAction
+
+## 1.3.3
+
+### Patch Changes
+
+- Impvovements to error handling and CoAgent protocol
+
+## 1.3.2
+
+### Patch Changes
+
+- Features and bug fixes
+- 30232c0: Ensure actions can be discovered on state change
+
+## 1.3.2-mme-discover-actions.0
+
+### Patch Changes
+
+- Ensure actions can be discovered on state change
+
+## 1.3.1
+
+### Patch Changes
+
+- Revert CSS injection
+
+## 1.3.0
+
+### Minor Changes
+
+- CoAgents and remote actions
+
+### Patch Changes
+
+- 5b63f55: stream intermediate state
+- b6fd3d8: Better message grouping
+- 89420c6: Rename hooks and bugfixes
+- b6e8824: useCoAgent/useCoAgentAction
+- 91c35b9: useAgentState
+- 00be203: Remote actions preview
+- fb15f72: Reduce request size by skipping intermediate state
+- 8ecc3e4: Fix useCoAgent start/stop bug
+
+## 1.2.1
+
+### Patch Changes
+
+- inject minified css in bundle
+
+  - removes the need to import `styles.css` manually
+  - empty `styles.css` included in the build for backwards compatibility
+  - uses tsup's `injectStyles` with `postcss` to bundle and minify the CSS, then inject it as a style tag
+  - currently uses my fork of `tsup` where I added support for async function in `injectStyles` (must-have for postcss), a PR from my fork to the main library will follow shortly
+  - remove material-ui, and use `react-icons` for icons (same icons as before)
+  - remove unused `IncludedFilesPreview` component
+  - updated docs
+
+## 1.2.0
+
+### Minor Changes
+
+- Fix errors related to crypto not being found, and other bug fixes
+
+### Patch Changes
+
+- 638d51d: appendMessage fix 1
+- faccbe1: state-abuse resistance for useCopilotChat
+- b0cf700: remove unnecessary logging
+
 ## 1.1.1
 
 ### Patch Changes

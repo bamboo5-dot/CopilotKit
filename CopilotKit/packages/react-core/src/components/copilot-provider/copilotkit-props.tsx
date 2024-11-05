@@ -6,7 +6,7 @@ import { ReactNode } from "react";
 
 export interface CopilotKitProps {
   /**
-   *  Your Copilot Cloud API key. Don't have it yet? <LinkToCopilotCloud>Click here to sign up for free</LinkToCopilotCloud>.
+   *  Your Copilot Cloud API key. Don't have it yet? Go to https://cloud.copilotkit.ai and get one for free.
    */
   publicApiKey?: string;
 
@@ -73,4 +73,9 @@ export interface CopilotKitProps {
    * If set to "auto", the dev console will be show on localhost only.
    */
   showDevConsole?: boolean | "auto";
+
+  /**
+   * The name of the agent to use.
+   */
+  agent?: string;
 }

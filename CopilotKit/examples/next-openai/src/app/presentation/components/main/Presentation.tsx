@@ -1,11 +1,11 @@
 "use client";
-import { useCopilotContext, useCopilotReadable } from "@copilotkit/react-core";
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { useCoAgent, useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
+import { useCopilotChatSuggestions } from "@copilotkit/react-ui";
+import { useCallback, useMemo, useState } from "react";
 import { Slide } from "./Slide";
 import { Header } from "./Header";
 import useAppendSlide from "../../actions/useAppendSlide";
 import { SlideModel } from "../../types";
-import { CopilotKitCSSProperties, useCopilotChatSuggestions } from "@copilotkit/react-ui";
 
 interface PresentationProps {
   performResearch: boolean;

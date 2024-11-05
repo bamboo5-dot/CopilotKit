@@ -3,13 +3,23 @@ import {
   MessageInput,
   MessageStatusCode,
 } from "../graphql/@generated/graphql";
-import { ActionExecutionMessage, Message, ResultMessage, TextMessage } from "./types";
+import {
+  ActionExecutionMessage,
+  AgentStateMessage,
+  Message,
+  ResultMessage,
+  TextMessage,
+} from "./types";
 
 import untruncateJson from "untruncate-json";
 
+export function filterAgentStateMessages(messages: Message[]): Message[] {
+  return messages.filter((message) => !message.isAgentStateMessage());
+}
+
 export function convertMessagesToGqlInput(messages: Message[]): MessageInput[] {
   return messages.map((message) => {
-    if (message instanceof TextMessage) {
+    if (message.isTextMessage()) {
       return {
         id: message.id,
         createdAt: message.createdAt,
@@ -18,7 +28,7 @@ export function convertMessagesToGqlInput(messages: Message[]): MessageInput[] {
           role: message.role as any,
         },
       };
-    } else if (message instanceof ActionExecutionMessage) {
+    } else if (message.isActionExecutionMessage()) {
       return {
         id: message.id,
         createdAt: message.createdAt,
@@ -28,7 +38,7 @@ export function convertMessagesToGqlInput(messages: Message[]): MessageInput[] {
           scope: message.scope as any,
         },
       };
-    } else if (message instanceof ResultMessage) {
+    } else if (message.isResultMessage()) {
       return {
         id: message.id,
         createdAt: message.createdAt,
@@ -38,10 +48,51 @@ export function convertMessagesToGqlInput(messages: Message[]): MessageInput[] {
           actionName: message.actionName,
         },
       };
+    } else if (message.isAgentStateMessage()) {
+      return {
+        id: message.id,
+        createdAt: message.createdAt,
+        agentStateMessage: {
+          threadId: message.threadId,
+          role: message.role,
+          agentName: message.agentName,
+          nodeName: message.nodeName,
+          runId: message.runId,
+          active: message.active,
+          running: message.running,
+          state: JSON.stringify(message.state),
+        },
+      };
     } else {
       throw new Error("Unknown message type");
     }
   });
+}
+
+export function filterAdjacentAgentStateMessages(
+  messages: GenerateCopilotResponseMutation["generateCopilotResponse"]["messages"],
+): GenerateCopilotResponseMutation["generateCopilotResponse"]["messages"] {
+  const filteredMessages: GenerateCopilotResponseMutation["generateCopilotResponse"]["messages"] =
+    [];
+
+  messages.forEach((message, i) => {
+    // keep all other message types
+    if (message.__typename !== "AgentStateMessageOutput") {
+      filteredMessages.push(message);
+    } else {
+      const prevAgentStateMessageIndex = filteredMessages.findIndex(
+        // TODO: also check runId
+        (m) => m.__typename === "AgentStateMessageOutput" && m.agentName === message.agentName,
+      );
+      if (prevAgentStateMessageIndex === -1) {
+        filteredMessages.push(message);
+      } else {
+        filteredMessages[prevAgentStateMessageIndex] = message;
+      }
+    }
+  });
+
+  return filteredMessages;
 }
 
 export function convertGqlOutputToMessages(
@@ -73,6 +124,19 @@ export function convertGqlOutputToMessages(
         actionName: message.actionName,
         createdAt: new Date(),
         status: message.status || { code: MessageStatusCode.Pending },
+      });
+    } else if (message.__typename === "AgentStateMessageOutput") {
+      return new AgentStateMessage({
+        id: message.id,
+        threadId: message.threadId,
+        role: message.role,
+        agentName: message.agentName,
+        nodeName: message.nodeName,
+        runId: message.runId,
+        active: message.active,
+        running: message.running,
+        state: JSON.parse(message.state),
+        createdAt: new Date(),
       });
     }
 

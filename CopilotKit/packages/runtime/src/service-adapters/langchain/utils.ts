@@ -21,7 +21,7 @@ import { RuntimeEventSubject } from "../events";
 import { randomId } from "@copilotkit/shared";
 
 export function convertMessageToLangChainMessage(message: Message): BaseMessage {
-  if (message instanceof TextMessage) {
+  if (message.isTextMessage()) {
     if (message.role == "user") {
       return new HumanMessage(message.content);
     } else if (message.role == "assistant") {
@@ -29,7 +29,7 @@ export function convertMessageToLangChainMessage(message: Message): BaseMessage 
     } else if (message.role === "system") {
       return new SystemMessage(message.content);
     }
-  } else if (message instanceof ActionExecutionMessage) {
+  } else if (message.isActionExecutionMessage()) {
     return new AIMessage({
       content: "",
       tool_calls: [
@@ -40,7 +40,7 @@ export function convertMessageToLangChainMessage(message: Message): BaseMessage 
         },
       ],
     });
-  } else if (message instanceof ResultMessage) {
+  } else if (message.isResultMessage()) {
     return new ToolMessage({
       content: message.result,
       tool_call_id: message.actionExecutionId,
@@ -69,7 +69,7 @@ export function convertJsonSchemaToZodSchema(jsonSchema: any, required: boolean)
     let schema = z.boolean().describe(jsonSchema.description);
     return !required ? schema.optional() : schema;
   } else if (jsonSchema.type === "array") {
-    let itemSchema = convertJsonSchemaToZodSchema(jsonSchema.items, false);
+    let itemSchema = convertJsonSchemaToZodSchema(jsonSchema.items, true);
     let schema = z.array(itemSchema);
     return !required ? schema.optional() : schema;
   }
@@ -106,15 +106,15 @@ function getConstructorName(object: any): string {
 }
 
 function isAIMessage(message: any): message is AIMessage {
-  return getConstructorName(message) === "AIMessage";
+  return Object.prototype.toString.call(message) === "[object AIMessage]";
 }
 
 function isAIMessageChunk(message: any): message is AIMessageChunk {
-  return getConstructorName(message) === "AIMessageChunk";
+  return Object.prototype.toString.call(message) === "[object AIMessageChunk]";
 }
 
 function isBaseMessageChunk(message: any): message is BaseMessageChunk {
-  return getConstructorName(message) === "BaseMessageChunk";
+  return Object.prototype.toString.call(message) === "[object BaseMessageChunk]";
 }
 
 function maybeSendActionExecutionResultIsMessage(
@@ -248,7 +248,9 @@ export async function streamLangChainResponse({
 
         // send the content events
         if (mode === "message" && content) {
-          eventStream$.sendTextMessageContent(content);
+          eventStream$.sendTextMessageContent(
+            Array.isArray(content) ? (content[0]?.text ?? "") : content,
+          );
         } else if (mode === "function" && toolCallArgs) {
           eventStream$.sendActionExecutionArgs(toolCallArgs);
         }

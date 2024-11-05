@@ -58,6 +58,7 @@ import {
   TextMessage,
   convertGqlOutputToMessages,
   convertMessagesToGqlInput,
+  filterAgentStateMessages,
   CopilotRequestType,
 } from "@copilotkit/runtime-client-gql";
 import { FrontendAction } from "../types/frontend-action";
@@ -147,7 +148,7 @@ export class CopilotTask<T = any> {
             })),
             url: window.location.href,
           },
-          messages: convertMessagesToGqlInput(messages),
+          messages: convertMessagesToGqlInput(filterAgentStateMessages(messages)),
           metadata: {
             requestType: CopilotRequestType.Task,
           },
@@ -162,7 +163,7 @@ export class CopilotTask<T = any> {
     const functionCallHandler = context.getFunctionCallHandler(actions);
     const functionCalls = convertGqlOutputToMessages(
       response.data?.generateCopilotResponse?.messages || [],
-    ).filter((m): m is ActionExecutionMessage => m instanceof ActionExecutionMessage);
+    ).filter((m): m is ActionExecutionMessage => m.isActionExecutionMessage());
 
     for (const functionCall of functionCalls) {
       await functionCallHandler({
