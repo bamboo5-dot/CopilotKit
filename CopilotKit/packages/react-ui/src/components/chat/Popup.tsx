@@ -5,7 +5,7 @@
  * A chatbot popup component for the CopilotKit framework. The component allows for a high degree
  * of customization through various props and custom CSS.
  *
- * See [CopilotSidebar](/reference/components/CopilotSidebar) for a sidebar version of this component.
+ * See [CopilotSidebar](/reference/components/chat/CopilotSidebar) for a sidebar version of this component.
  *
  * ## Install Dependencies
  *
@@ -43,7 +43,7 @@
  *   );
  * }
  * ```
- * For more information about how to customize the styles, check out the [Customize Look & Feel](/concepts/customize-look-and-feel) guide.
+ * For more information about how to customize the styles, check out the [Customize Look & Feel](/guides/custom-look-and-feel/customize-built-in-ui-components) guide.
  */
 
 import { CopilotModal, CopilotModalProps } from "./Modal";

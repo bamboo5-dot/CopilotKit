@@ -4,7 +4,7 @@
  *
  * A chatbot sidebar component for the CopilotKit framework. Highly customizable through various props and custom CSS.
  *
- * See [CopilotPopup](/reference/components/CopilotPopup) for a popup version of this component.
+ * See [CopilotPopup](/reference/components/chat/CopilotPopup) for a popup version of this component.
  *
  * ## Install Dependencies
  *
@@ -45,7 +45,7 @@
  *   );
  * }
  * ```
- * For more information about how to customize the styles, check out the [Customize Look & Feel](/concepts/customize-look-and-feel) guide.
+ * For more information about how to customize the styles, check out the [Customize Look & Feel](/guides/custom-look-and-feel/customize-built-in-ui-components) guide.
  */
 import React, { useState } from "react";
 import { CopilotModal, CopilotModalProps } from "./Modal";
