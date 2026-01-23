@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@copilotkit/react-core": "1.4.7",
-    "@copilotkit/react-ui": "1.4.7",
+    "@copilotkit/react-ui": "1.8.13",
     "@copilotkit/runtime": "1.4.7",
     "@copilotkit/runtime-client-gql": "1.4.7",
     "@copilotkit/shared": "1.4.7",
