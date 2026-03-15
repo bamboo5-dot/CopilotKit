@@ -63,8 +63,8 @@
   },
   "dependencies": {
     "@copilotkit/shared": "workspace:*",
-    "@langchain/community": "^0.0.53",
-    "@langchain/core": "^0.3.13",
+    "@langchain/community": "^1.1.14",
+    "@langchain/core": "^1.1.14",
     "@langchain/langgraph": "^0.2.22",
     "@langchain/langgraph-sdk": "^0.0.16",
     "langchain": "^0.3.3",
